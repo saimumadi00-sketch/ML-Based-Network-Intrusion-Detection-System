@@ -1,0 +1,4 @@
+{
+  "198.51.100.23": {"reputation": "KNOWN-MALICIOUS", "geo": "US, AS64500"},
+  "198.51.100.77": {"reputation": "SUSPICIOUS", "geo": "US, AS64501"}
+}
