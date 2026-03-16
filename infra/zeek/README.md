@@ -8,6 +8,8 @@ Use Zeek to extract flow-level logs from PCAP.
 .\infra\zeek\process_pcap.ps1 -PcapPath data\pcap\capture.pcapng -OutputDir data\zeek
 ```
 
+If Zeek is installed in WSL (Ubuntu), the script will automatically run it via WSL.
+
 ## Linux/macOS
 
 ```bash

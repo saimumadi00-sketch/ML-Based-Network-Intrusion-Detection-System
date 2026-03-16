@@ -5,14 +5,21 @@ param(
     [string]$BpfFilter = ""
 )
 
-if (-not (Get-Command tshark -ErrorAction SilentlyContinue)) {
+$tshark = (Get-Command tshark -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source)
+if (-not $tshark) {
+    $default = "C:\\Program Files\\Wireshark\\tshark.exe"
+    if (Test-Path $default) {
+        $tshark = $default
+    }
+}
+if (-not $tshark) {
     Write-Error "tshark not found. Install Wireshark (includes tshark) and ensure it is on PATH."
     exit 1
 }
 
 if (-not $Interface) {
     Write-Host "Select an interface index from:"
-    tshark -D
+    & $tshark -D
     Write-Host "Re-run with -Interface <index>."
     exit 1
 }

@@ -5,7 +5,14 @@ param(
     [string]$BpfFilter = ""
 )
 
-if (-not (Get-Command tshark -ErrorAction SilentlyContinue)) {
+$tshark = (Get-Command tshark -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source)
+if (-not $tshark) {
+    $default = "C:\\Program Files\\Wireshark\\tshark.exe"
+    if (Test-Path $default) {
+        $tshark = $default
+    }
+}
+if (-not $tshark) {
     Write-Error "tshark not found. Install Wireshark (includes tshark) and ensure it is on PATH."
     exit 1
 }
@@ -21,4 +28,4 @@ $filterArgs = @()
 if ($BpfFilter) { $filterArgs = @("-f", $BpfFilter) }
 
 # Ring buffer rotation by duration
-& tshark -i $Interface -b duration:$RotateSeconds -w (Join-Path $OutputDir "capture.pcapng") @filterArgs
+& $tshark -i $Interface -b duration:$RotateSeconds -w (Join-Path $OutputDir "capture.pcapng") @filterArgs

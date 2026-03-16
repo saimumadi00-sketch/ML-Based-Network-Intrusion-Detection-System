@@ -14,6 +14,8 @@ tshark -D
 .\infra\capture\windows_tshark_capture.ps1 -Interface 1 -OutputDir data\pcap -RotateSeconds 300 -BpfFilter "tcp"
 ```
 
+Npcap is required for capture on Windows.
+
 ## Linux (tcpdump)
 
 ```bash

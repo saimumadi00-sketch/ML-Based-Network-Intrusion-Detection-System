@@ -16,6 +16,13 @@ if (Get-Command zeek -ErrorAction SilentlyContinue) {
     exit 0
 }
 
+if (Get-Command wsl -ErrorAction SilentlyContinue) {
+    $wslPcap = & wsl wslpath -a $PcapPath
+    $wslOut = & wsl wslpath -a $OutputDir
+    & wsl -d Ubuntu -- bash -lc "mkdir -p $wslOut && cd $wslOut && /opt/zeek/bin/zeek -r $wslPcap local"
+    exit 0
+}
+
 if (Get-Command docker -ErrorAction SilentlyContinue) {
     $pcapDir = Split-Path -Parent (Resolve-Path $PcapPath)
     $pcapFile = Split-Path -Leaf $PcapPath

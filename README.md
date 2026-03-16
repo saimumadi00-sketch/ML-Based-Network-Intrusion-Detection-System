@@ -94,3 +94,17 @@ See the `infra/` directory for operational setup scripts:
 - `infra/streaming/README.md` for Kafka or Redis streaming
 - `infra/netflow/README.md` for NetFlow/IPFIX collection (nfdump)
 - `infra/storage/README.md` for PCAP cold storage and feature storage
+
+## Progress So Far
+
+- Built the NIDS pipeline and CLI (`app.py`, `nids_agent/`).
+- Installed Python 3.12 and created two venvs:
+  - `.venv` for the minimal project runtime.
+  - `nids-env` with ML/monitoring/ingestion deps; `requirements.txt` locked via `pip freeze`.
+- Added infrastructure scripts/configs under `infra/` and helper scripts under `scripts/`.
+- WSL Ubuntu installed; Zeek, tcpdump, nfdump, and redis-server installed inside WSL.
+  - Redis and nfdump services are enabled and running in WSL.
+  - Zeek is available at `/opt/zeek/bin/zeek` (symlinked to `/usr/local/bin/zeek`).
+- Wireshark 4.4.14 installed on Windows; `tshark` available at `C:\Program Files\Wireshark\tshark.exe`.
+- Npcap installer downloaded to `data/installers/npcap-1.87.exe` (needs interactive install for Windows capture).
+- Kafka and Docker are not installed yet (optional; can be added if desired).
