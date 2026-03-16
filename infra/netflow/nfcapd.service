@@ -1,0 +1,11 @@
+[Unit]
+Description=NetFlow/IPFIX Collector (nfcapd)
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/nfcapd -l /var/log/nfcapd -p 2055 -D
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

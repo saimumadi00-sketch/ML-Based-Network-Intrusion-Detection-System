@@ -20,7 +20,7 @@ python app.py --input data/sample_flows.jsonl --format jsonl
   - Threshold-based rules
   - Statistical deviation vs baseline
   - Unsupervised scoring (autoencoder stub)
-  - Flags reconstruction error > 2?
+- Flags reconstruction error > 2-sigma
 
 - Stage 3: Threat Classification
   - Binary: BENIGN vs ATTACK
@@ -84,3 +84,13 @@ python app.py --report daily_digest
 
 - The tool interface supports local stubs for `query_flow_database`, `lookup_threat_intel`, and `run_ml_inference`.
 - Replace stub data in `data/` with real feeds to integrate with your environment.
+
+## Infrastructure Setup (optional)
+
+See the `infra/` directory for operational setup scripts:
+
+- `infra/capture/README.md` for tshark/tcpdump capture
+- `infra/zeek/README.md` for Zeek PCAP processing
+- `infra/streaming/README.md` for Kafka or Redis streaming
+- `infra/netflow/README.md` for NetFlow/IPFIX collection (nfdump)
+- `infra/storage/README.md` for PCAP cold storage and feature storage
