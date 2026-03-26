@@ -7,9 +7,15 @@ param(
 
 $tshark = (Get-Command tshark -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty Source)
 if (-not $tshark) {
-    $default = "C:\\Program Files\\Wireshark\\tshark.exe"
-    if (Test-Path $default) {
-        $tshark = $default
+    $defaults = @(
+        "D:\\I miss her\\Wireshark\\tshark.exe",
+        "C:\\Program Files\\Wireshark\\tshark.exe"
+    )
+    foreach ($path in $defaults) {
+        if (Test-Path $path) {
+            $tshark = $path
+            break
+        }
     }
 }
 if (-not $tshark) {
