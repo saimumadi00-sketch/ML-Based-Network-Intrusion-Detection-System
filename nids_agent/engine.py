@@ -11,7 +11,7 @@ from .classification import classify_flow
 from .config import Config
 from .correlation import correlate
 from .preprocessing import preprocess_batch
-from .reports import kl_divergence, update_metrics_state
+from .reports import append_predictions, kl_divergence, update_confusion_matrix, update_metrics_state
 from .scoring import compute_severity
 from .store import load_recent_events, log_decision, log_event
 from .tools import Toolset
@@ -56,10 +56,10 @@ class NIDSAgent:
         y_true: List[str] = []
         y_pred: List[str] = []
         info_bucket: List[Dict[str, Any]] = []
-        history = load_recent_events(self.config.logs_dir)
+        end_ts = datetime.now(timezone.utc)
+        start_ts = end_ts - timedelta(hours=24)
+        history = load_recent_events(self.config.logs_dir, since_ts=start_ts.isoformat())
         try:
-            end_ts = datetime.now(timezone.utc)
-            start_ts = end_ts - timedelta(hours=24)
             db_events = self.tools.query_flow_database({}, (start_ts.isoformat(), end_ts.isoformat()))
             history.extend(db_events)
         except Exception as exc:
@@ -143,9 +143,10 @@ class NIDSAgent:
                 "steps": decision_steps,
             })
 
-            label_true = flow.get("label") or flow.get("ground_truth")
-            if label_true is not None:
-                y_true.append(str(label_true))
+            label_true_raw = flow.get("label") or flow.get("ground_truth")
+            if label_true_raw is not None:
+                label_norm = "BENIGN" if str(label_true_raw).upper() == "BENIGN" else "ATTACK"
+                y_true.append(label_norm)
                 y_pred.append(classification["binary_label"])
 
             if classification["binary_label"] == "BENIGN" and classification["status"].startswith("INSUFFICIENT"):
@@ -312,6 +313,8 @@ class NIDSAgent:
         metrics_update: Dict[str, Any] = {"mean_latency_ms": round(latency_ms / max(len(flows), 1), 2)}
 
         if y_true and y_pred:
+            update_confusion_matrix(self.config.logs_dir, y_true, y_pred)
+            append_predictions(self.config.logs_dir, y_true, y_pred)
             tp = sum(1 for t, p in zip(y_true, y_pred) if t == "ATTACK" and p == "ATTACK")
             tn = sum(1 for t, p in zip(y_true, y_pred) if t == "BENIGN" and p == "BENIGN")
             fp = sum(1 for t, p in zip(y_true, y_pred) if t == "BENIGN" and p == "ATTACK")

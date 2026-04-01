@@ -3,9 +3,10 @@ from __future__ import annotations
 import math
 import os
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Tuple
 
-from .utils import calc_f1, read_json, utc_now_iso, write_json
+from .utils import append_jsonl, read_json, utc_now_iso, write_json
 
 
 def kl_divergence(p: List[float], q: List[float]) -> float:
@@ -32,6 +33,22 @@ def update_confusion_matrix(logs_dir: str, y_true: List[str], y_pred: List[str])
         matrix[t][p] += 1
     write_json(path, matrix)
     return matrix
+
+
+def append_predictions(logs_dir: str, y_true: List[str], y_pred: List[str]) -> None:
+    path = os.path.join(logs_dir, "predictions.jsonl")
+    ts = utc_now_iso()
+    for t, p in zip(y_true, y_pred):
+        append_jsonl(path, {"timestamp": ts, "y_true": t, "y_pred": p})
+
+
+def _parse_iso(ts: str) -> datetime | None:
+    try:
+        if ts.endswith("Z"):
+            ts = ts.replace("Z", "+00:00")
+        return datetime.fromisoformat(ts)
+    except Exception:
+        return None
 
 
 def compute_metrics(logs_dir: str) -> Dict[str, Any]:
@@ -92,8 +109,29 @@ def generate_hourly_summary(logs_dir: str, time_range: Tuple[str, str]) -> str:
 
 
 def generate_daily_digest(logs_dir: str, time_range: Tuple[str, str]) -> str:
-    matrix_path = os.path.join(logs_dir, "confusion_matrix.json")
-    matrix = read_json(matrix_path) if os.path.exists(matrix_path) else {}
+    # Rolling 24h confusion matrix from predictions log
+    matrix: Dict[str, Dict[str, int]] = {}
+    pred_path = os.path.join(logs_dir, "predictions.jsonl")
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+    if os.path.exists(pred_path):
+        with open(pred_path, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    rec = __import__("json").loads(line)
+                except Exception:
+                    continue
+                ts = _parse_iso(rec.get("timestamp", ""))
+                if ts is None or ts < cutoff:
+                    continue
+                t = rec.get("y_true")
+                p = rec.get("y_pred")
+                if t is None or p is None:
+                    continue
+                if t not in matrix:
+                    matrix[t] = {}
+                if p not in matrix[t]:
+                    matrix[t][p] = 0
+                matrix[t][p] += 1
     summary = []
     summary.append("DAILY DIGEST")
     summary.append(f"Time Range: {time_range[0]} to {time_range[1]}")
