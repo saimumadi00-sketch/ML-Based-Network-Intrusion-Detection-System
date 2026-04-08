@@ -1,5 +1,6 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
+import json
 import os
 import time
 from datetime import datetime, timedelta, timezone
@@ -28,7 +29,6 @@ class NIDSAgent:
 
     def _load_baseline(self, flows: List[Dict[str, Any]]) -> Dict[str, Dict[str, float]]:
         if self.config.baseline_profile_path and os.path.exists(self.config.baseline_profile_path):
-            import json
 
             with open(self.config.baseline_profile_path, "r", encoding="utf-8") as f:
                 return json.load(f)
@@ -100,7 +100,6 @@ class NIDSAgent:
             asset_criticality = "STANDARD"
             asset_tag = "UNKNOWN"
             if self.config.asset_criticality_map_path and os.path.exists(self.config.asset_criticality_map_path):
-                import json
 
                 with open(self.config.asset_criticality_map_path, "r", encoding="utf-8") as f:
                     asset_map = json.load(f)
@@ -329,8 +328,8 @@ class NIDSAgent:
         # Concept drift (KL divergence) on normalized numeric features
         hist_bins = 10
         current_hist: Dict[str, List[float]] = {}
-        for f in self.config.numeric_features:
-            key = f"{f}_norm"
+        for feat in self.config.numeric_features:
+            key = f"{feat}_norm"
             values = [flow.get(key, 0.0) for flow in processed]
             bins = [0] * hist_bins
             for v in values:
@@ -344,23 +343,28 @@ class NIDSAgent:
                     idx = 0
                 bins[idx] += 1
             total = sum(bins) or 1
-            current_hist[f] = [b / total for b in bins]
+            current_hist[feat] = [b / total for b in bins]
 
-        baseline_hist = {}
+        baseline_hist: Dict[str, List[float]] = {}
         hist_path = os.path.join(self.config.logs_dir, "baseline_hist.json")
+        loaded = False
         if os.path.exists(hist_path):
-            import json
-
-            with open(hist_path, "r", encoding="utf-8") as f:
-                baseline_hist = json.load(f)
-        else:
+            try:
+                with open(hist_path, "r", encoding="utf-8") as fh:
+                    content = fh.read().strip()
+                    if content:
+                        baseline_hist = json.loads(content)
+                        loaded = True
+            except (json.JSONDecodeError, OSError):
+                loaded = False
+        if not loaded:
             baseline_hist = current_hist
-            with open(hist_path, "w", encoding="utf-8") as f:
-                json.dump(baseline_hist, f, indent=2)
+            with open(hist_path, "w", encoding="utf-8") as fh:
+                json.dump(baseline_hist, fh, indent=2)
 
         kl_scores = []
-        for f, p in current_hist.items():
-            q = baseline_hist.get(f, p)
+        for feat, p in current_hist.items():
+            q = baseline_hist.get(feat, p)
             kl_scores.append(kl_divergence(p, q))
         metrics_update["concept_drift"] = round(max(kl_scores) if kl_scores else 0.0, 4)
 

@@ -103,3 +103,8 @@ class Config:
     data_dir: str = "data"
     hourly_summary_interval_seconds: int = 3600
     redact_internal_ips: bool = True
+
+    def __post_init__(self) -> None:
+        import os
+        os.makedirs(self.logs_dir, exist_ok=True)
+        os.makedirs(self.data_dir, exist_ok=True)

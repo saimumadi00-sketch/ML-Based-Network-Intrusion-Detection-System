@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from typing import Any, Dict, List
 
@@ -28,7 +29,7 @@ def load_recent_events(logs_dir: str, max_items: int = 1000) -> List[Dict[str, A
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             try:
-                events.append(__import__("json").loads(line))
+                events.append(json.loads(line))
             except Exception:
                 continue
     return events[-max_items:]
