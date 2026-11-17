@@ -31,7 +31,8 @@ def classify_flow(
         result["subtype"] = rule_match.get("subtype", "N/A")
         result["subtype_confidence"] = rule_match.get("confidence", 0.8)
         result["status"] = "CONFIRMED ATTACK"
-    elif model_output is not None:
+    # A BENIGN model verdict must not mask a statistical anomaly; only an ATTACK verdict takes precedence.
+    elif model_output is not None and (str(model_output.get("label", "BENIGN")) != "BENIGN" or not anomaly_flag):
         label = str(model_output.get("label", "BENIGN"))
         result["binary_label"] = "ATTACK" if label != "BENIGN" else "BENIGN"
         result["binary_confidence"] = float(model_output.get("confidence", 0.6))

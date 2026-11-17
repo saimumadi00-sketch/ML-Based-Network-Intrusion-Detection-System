@@ -1,5 +1,6 @@
 ﻿from __future__ import annotations
 
+import json
 import os
 import time
 from datetime import datetime, timedelta, timezone
@@ -15,6 +16,7 @@ from .reports import append_predictions, kl_divergence, update_confusion_matrix,
 from .scoring import compute_severity
 from .store import load_recent_events, log_decision, log_event
 from .tools import Toolset
+from .utils import calc_f1
 
 
 class NIDSAgent:
@@ -28,8 +30,6 @@ class NIDSAgent:
 
     def _load_baseline(self, flows: List[Dict[str, Any]]) -> Dict[str, Dict[str, float]]:
         if self.config.baseline_profile_path and os.path.exists(self.config.baseline_profile_path):
-            import json
-
             with open(self.config.baseline_profile_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         return compute_baseline(flows, self.config)
@@ -100,8 +100,6 @@ class NIDSAgent:
             asset_criticality = "STANDARD"
             asset_tag = "UNKNOWN"
             if self.config.asset_criticality_map_path and os.path.exists(self.config.asset_criticality_map_path):
-                import json
-
                 with open(self.config.asset_criticality_map_path, "r", encoding="utf-8") as f:
                     asset_map = json.load(f)
                 asset_info = asset_map.get(str(flow.get("dst_ip")), {})
@@ -322,11 +320,16 @@ class NIDSAgent:
             recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
             fpr = fp / (fp + tn) if (fp + tn) > 0 else 0.0
             precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
-            f1 = (2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
+            # BENIGN F1 treats BENIGN as the positive class: precision = NPV, recall = specificity.
+            npv = tn / (tn + fn) if (tn + fn) > 0 else 0.0
+            specificity = tn / (tn + fp) if (tn + fp) > 0 else 0.0
             metrics_update.update({
                 "recall": round(recall, 4),
                 "fpr": round(fpr, 4),
-                "f1_per_class": {"ATTACK": round(f1, 4), "BENIGN": round(f1, 4)},
+                "f1_per_class": {
+                    "ATTACK": round(calc_f1(precision, recall), 4),
+                    "BENIGN": round(calc_f1(npv, specificity), 4),
+                },
             })
 
         # Concept drift (KL divergence) on normalized numeric features
@@ -349,14 +352,12 @@ class NIDSAgent:
             total = sum(bins) or 1
             current_hist[f] = [b / total for b in bins]
 
-        baseline_hist = {}
         hist_path = os.path.join(self.config.logs_dir, "baseline_hist.json")
-        if os.path.exists(hist_path):
-            import json
-
+        try:
             with open(hist_path, "r", encoding="utf-8") as f:
                 baseline_hist = json.load(f)
-        else:
+        except (FileNotFoundError, json.JSONDecodeError):
+            # Missing or corrupt (e.g. left empty by an interrupted write): rebuild from this batch.
             baseline_hist = current_hist
             with open(hist_path, "w", encoding="utf-8") as f:
                 json.dump(baseline_hist, f, indent=2)
