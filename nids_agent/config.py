@@ -56,9 +56,21 @@ DEFAULT_RULES = [
         "name": "possible_port_scan",
         "category": "Port Scan",
         "subtype": "Horizontal",
+        # Aggregate rule: evaluated per source over a time window (see anomaly.detect_port_scans),
+        # not per flow. A single short flow (e.g. one DNS lookup) is not a scan.
+        "aggregate": {
+            "window_seconds": 60,
+            "min_distinct_targets": 10,
+        },
         "conditions": {
             "packets_sent_max": 5,
             "duration_max": 1.0,
+            # A probe gets no payload back. Without this, a host making ordinary DNS/NTP/Kerberos
+            # requests to 10+ servers counted as a scan (seen on Zeek output of CIC-IDS2017 PCAPs).
+            "bytes_recv_max": 0,
+            # Probes start with a SYN. Mid-stream fragments Zeek sees without one (state OTH) are not probes;
+            # requiring SYN cut benign rule hits by 60% on CIC-IDS2017 Zeek output with no loss in scan recall.
+            "flags_require": "SYN",
         },
         "confidence": 0.70,
         "impact": 5.0,
@@ -103,6 +115,12 @@ class Config:
     data_dir: str = "data"
     hourly_summary_interval_seconds: int = 3600
     redact_internal_ips: bool = True
+    # data/models/<name>.json.gz (trained forest) or legacy stub data/<name>.json
+    ml_model_name: str = "flow_classifier"
+    # The model was trained on TCP/UDP flows (CICFlowMeter); it is not run on these protocols.
+    ml_skip_protocols: List[str] = field(default_factory=lambda: ["ICMP", "ICMPV6", "IPV6-ICMP"])
+    # Autonomous responses (only with authorize_autonomous_response) fire for these severities.
+    response_actions: Dict[str, str] = field(default_factory=lambda: {"CRITICAL": "block", "HIGH": "rate-limit"})
 
     def __post_init__(self) -> None:
         import os

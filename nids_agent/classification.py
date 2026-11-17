@@ -31,15 +31,22 @@ def classify_flow(
         result["subtype"] = rule_match.get("subtype", "N/A")
         result["subtype_confidence"] = rule_match.get("confidence", 0.8)
         result["status"] = "CONFIRMED ATTACK"
-    # A BENIGN model verdict must not mask a statistical anomaly; only an ATTACK verdict takes precedence.
-    elif model_output is not None and (str(model_output.get("label", "BENIGN")) != "BENIGN" or not anomaly_flag):
+    # A trained model's verdict (it reports attack_score) is final: on CIC-IDS2017 the z-score check added
+    # ~1.6% false positives and no extra recall on top of it, so the z-score is kept as evidence only.
+    # A fixed-output stub model must not mask a statistical anomaly; only its ATTACK verdict takes precedence.
+    elif model_output is not None and (
+        "attack_score" in model_output
+        or str(model_output.get("label", "BENIGN")) != "BENIGN"
+        or not anomaly_flag
+    ):
         label = str(model_output.get("label", "BENIGN"))
         result["binary_label"] = "ATTACK" if label != "BENIGN" else "BENIGN"
-        result["binary_confidence"] = float(model_output.get("confidence", 0.6))
+        confidence = float(model_output.get("confidence", 0.6))
+        result["binary_confidence"] = confidence
         result["category"] = str(model_output.get("category", "Other" if label != "BENIGN" else "BENIGN"))
-        result["category_confidence"] = float(model_output.get("confidence", 0.6))
+        result["category_confidence"] = float(model_output.get("category_confidence", confidence))
         result["subtype"] = str(model_output.get("subtype", "N/A"))
-        result["subtype_confidence"] = float(model_output.get("confidence", 0.6))
+        result["subtype_confidence"] = float(model_output.get("subtype_confidence", confidence))
         result["status"] = "SUSPECTED ANOMALY" if label != "BENIGN" else "INFORMATIONAL"
     elif anomaly_flag:
         result["binary_label"] = "ATTACK"

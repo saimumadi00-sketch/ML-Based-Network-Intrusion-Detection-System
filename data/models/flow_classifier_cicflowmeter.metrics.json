@@ -1,0 +1,173 @@
+{
+  "split": {
+    "train": 2494568,
+    "validation": 712616,
+    "test": 356309
+  },
+  "unique_flows": 2375389,
+  "raw_flows": 2830743,
+  "ambiguous_flows": 2887,
+  "threshold": 0.11089919339300248,
+  "target_fpr": 0.005,
+  "test_binary": {
+    "recall": 0.9963,
+    "fpr": 0.00426,
+    "precision": 0.9807,
+    "f1": 0.9884,
+    "tp": 63407,
+    "fp": 1247,
+    "fn": 238,
+    "tn": 291417
+  },
+  "test_binary_without_iat": {
+    "recall": 0.9944,
+    "fpr": 0.00389,
+    "precision": 0.9824,
+    "f1": 0.9883,
+    "tp": 63286,
+    "fp": 1137,
+    "fn": 359,
+    "tn": 291527
+  },
+  "test_binary_at_validation_fpr": {
+    "0.001": {
+      "recall": 0.9897,
+      "fpr": 0.00098,
+      "precision": 0.9955,
+      "f1": 0.9926,
+      "tp": 62989,
+      "fp": 286,
+      "fn": 656,
+      "tn": 292378
+    },
+    "0.005": {
+      "recall": 0.9963,
+      "fpr": 0.00426,
+      "precision": 0.9807,
+      "f1": 0.9884,
+      "tp": 63407,
+      "fp": 1247,
+      "fn": 238,
+      "tn": 291417
+    },
+    "0.01": {
+      "recall": 0.9982,
+      "fpr": 0.00895,
+      "precision": 0.9604,
+      "f1": 0.9789,
+      "tp": 63531,
+      "fp": 2619,
+      "fn": 114,
+      "tn": 290045
+    }
+  },
+  "test_per_class": {
+    "BENIGN": {
+      "precision": 0.9992,
+      "recall": 0.9957,
+      "f1-score": 0.9975,
+      "support": 292664.0
+    },
+    "DDoS": {
+      "precision": 0.9981,
+      "recall": 0.9995,
+      "f1-score": 0.9988,
+      "support": 19201.0
+    },
+    "DoS Hulk": {
+      "precision": 0.9834,
+      "recall": 0.9993,
+      "f1-score": 0.9913,
+      "support": 25795.0
+    },
+    "DoS GoldenEye": {
+      "precision": 0.8908,
+      "recall": 0.9948,
+      "f1-score": 0.94,
+      "support": 1542.0
+    },
+    "DoS slowloris": {
+      "precision": 0.9734,
+      "recall": 0.9865,
+      "f1-score": 0.9799,
+      "support": 743.0
+    },
+    "DoS Slowhttptest": {
+      "precision": 0.9644,
+      "recall": 0.9922,
+      "f1-score": 0.9781,
+      "support": 765.0
+    },
+    "PortScan": {
+      "precision": 0.9853,
+      "recall": 0.999,
+      "f1-score": 0.9921,
+      "support": 13623.0
+    },
+    "FTP-Patator": {
+      "precision": 0.9955,
+      "recall": 1.0,
+      "f1-score": 0.9978,
+      "support": 890.0
+    },
+    "SSH-Patator": {
+      "precision": 0.9513,
+      "recall": 0.9915,
+      "f1-score": 0.971,
+      "support": 473.0
+    },
+    "Bot": {
+      "precision": 0.5696,
+      "recall": 0.7543,
+      "f1-score": 0.649,
+      "support": 293.0
+    },
+    "Web Attack Brute Force": {
+      "precision": 0.3602,
+      "recall": 0.5841,
+      "f1-score": 0.4456,
+      "support": 214.0
+    },
+    "Web Attack XSS": {
+      "precision": 0.7143,
+      "recall": 0.0515,
+      "f1-score": 0.0962,
+      "support": 97.0
+    },
+    "Web Attack Sql Injection": {
+      "precision": 1.0,
+      "recall": 0.3333,
+      "f1-score": 0.5,
+      "support": 3.0
+    },
+    "Infiltration": {
+      "precision": 0.6667,
+      "recall": 0.8,
+      "f1-score": 0.7273,
+      "support": 5.0
+    },
+    "Heartbleed": {
+      "precision": 0.5,
+      "recall": 1.0,
+      "f1-score": 0.6667,
+      "support": 1.0
+    }
+  },
+  "hyperparameters": {
+    "trees": 30,
+    "max_depth": 18,
+    "min_leaf": 5,
+    "mask_iat_frac": 0.5
+  },
+  "comparison_all_78_features": {
+    "recall": 0.9996,
+    "fpr": 0.00499,
+    "precision": 0.9763,
+    "f1": 0.9878,
+    "tp": 63855,
+    "fp": 1553,
+    "fn": 25,
+    "tn": 309499
+  },
+  "parity_max_abs_diff": 9.572908417319892e-07
+}

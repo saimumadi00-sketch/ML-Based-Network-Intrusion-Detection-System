@@ -11,12 +11,27 @@ def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+_INTERNAL_NETWORKS = [
+    ipaddress.ip_network(n)
+    for n in (
+        "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",  # RFC 1918
+        "127.0.0.0/8", "169.254.0.0/16",                  # loopback, link-local
+        "::1/128", "fc00::/7", "fe80::/10",               # IPv6 loopback, ULA, link-local
+    )
+]
+
+
 def is_private_ip(ip_str: str) -> bool:
+    """True for internal addresses (RFC 1918, loopback, link-local, IPv6 ULA).
+
+    Deliberately narrower than ipaddress.is_private, which also counts documentation and
+    reserved ranges (e.g. 198.51.100.0/24, 203.0.113.0/24) that are not internal hosts.
+    """
     try:
         ip_obj = ipaddress.ip_address(ip_str)
-        return ip_obj.is_private
     except ValueError:
         return False
+    return any(ip_obj in net for net in _INTERNAL_NETWORKS if net.version == ip_obj.version)
 
 
 def redact_ip(ip_str: str, redact_internal: bool = True) -> str:

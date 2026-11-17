@@ -5,6 +5,7 @@ import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
+from .model import ForestModel
 from .utils import append_jsonl, read_json, utc_now_iso
 
 
@@ -80,6 +81,14 @@ class Toolset:
     def run_ml_inference(self, feature_vector: Dict[str, Any], model_name: str) -> Dict[str, Any]:
         params = {"model_name": model_name}
         try:
+            forest_path = os.path.join(self.data_dir, "models", f"{model_name}.json.gz")
+            if os.path.exists(forest_path):
+                result = ForestModel.load(forest_path).predict(feature_vector)
+                result["model"] = model_name
+                result["score"] = result["attack_score"]
+                _log_tool_call(self.tool_log_path, "run_ml_inference", params, "ok")
+                return result
+            # Legacy fixed-output stub (data/<model_name>.json), kept for tests and offline demos.
             model_path = os.path.join(self.data_dir, f"{model_name}.json")
             if not os.path.exists(model_path):
                 raise ToolCallError(f"model artifact not found: {model_name}")

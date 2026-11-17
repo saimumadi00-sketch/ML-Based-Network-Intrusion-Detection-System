@@ -1,0 +1,3 @@
+# Training-only dependencies (scripts/train_model.py). The NIDS pipeline itself needs only the stdlib.
+numpy==2.5.5
+scikit-learn==1.9.1

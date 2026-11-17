@@ -1,0 +1,108 @@
+{
+  "binary": {
+    "model": {
+      "tp": 75940,
+      "fp": 839,
+      "fn": 4235,
+      "tn": 179027
+    },
+    "rules": {
+      "tp": 34614,
+      "fp": 349,
+      "fn": 45561,
+      "tn": 179517
+    },
+    "pipeline": {
+      "tp": 76097,
+      "fp": 1026,
+      "fn": 4078,
+      "tn": 178840
+    }
+  },
+  "per_class": {
+    "BENIGN": {
+      "n": 179866,
+      "model": 843,
+      "rules": 351,
+      "pipeline": 1026
+    },
+    "FTP-Patator": {
+      "n": 599,
+      "model": 598,
+      "rules": 0,
+      "pipeline": 598
+    },
+    "SSH-Patator": {
+      "n": 447,
+      "model": 447,
+      "rules": 0,
+      "pipeline": 447
+    },
+    "DoS Hulk": {
+      "n": 24456,
+      "model": 23874,
+      "rules": 0,
+      "pipeline": 23874
+    },
+    "DoS Slowhttptest": {
+      "n": 2408,
+      "model": 649,
+      "rules": 0,
+      "pipeline": 649
+    },
+    "DoS GoldenEye": {
+      "n": 1143,
+      "model": 1137,
+      "rules": 0,
+      "pipeline": 1137
+    },
+    "DoS slowloris": {
+      "n": 582,
+      "model": 552,
+      "rules": 0,
+      "pipeline": 552
+    },
+    "Infiltration": {
+      "n": 12288,
+      "model": 10969,
+      "rules": 10840,
+      "pipeline": 11126
+    },
+    "Web Attack Brute Force": {
+      "n": 204,
+      "model": 19,
+      "rules": 0,
+      "pipeline": 19
+    },
+    "Web Attack XSS": {
+      "n": 95,
+      "model": 3,
+      "rules": 0,
+      "pipeline": 3
+    },
+    "Web Attack Sql Injection": {
+      "n": 2,
+      "model": 0,
+      "rules": 0,
+      "pipeline": 0
+    },
+    "PortScan": {
+      "n": 23863,
+      "model": 23861,
+      "rules": 23772,
+      "pipeline": 23861
+    },
+    "DDoS": {
+      "n": 13757,
+      "model": 13740,
+      "rules": 0,
+      "pipeline": 13740
+    },
+    "Bot": {
+      "n": 331,
+      "model": 91,
+      "rules": 0,
+      "pipeline": 91
+    }
+  }
+}

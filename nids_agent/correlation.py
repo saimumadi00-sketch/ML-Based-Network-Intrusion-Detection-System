@@ -10,7 +10,11 @@ def correlate(flow: Dict[str, Any], history: List[Dict[str, Any]], category: str
     src_ip = flow.get("src_ip")
     dst_ip = flow.get("dst_ip")
     dst_port = flow.get("dst_port")
+    flow_id = flow.get("flow_id")
     for event in history:
+        # A re-processed flow must not correlate with its own earlier event.
+        if flow_id and event.get("flow_id") == flow_id:
+            continue
         if src_ip and event.get("src_ip") == src_ip:
             related.append(event)
         elif dst_ip and event.get("dst_ip") == dst_ip:

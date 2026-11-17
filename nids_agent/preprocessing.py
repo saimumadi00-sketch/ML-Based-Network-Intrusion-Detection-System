@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from .config import Config
 from .utils import mean, safe_float
@@ -16,11 +16,31 @@ def _collect_numeric(flows: List[Dict[str, Any]], numeric_features: List[str]) -
     return values
 
 
-def preprocess_batch(flows: List[Dict[str, Any]], config: Config) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+def preprocess_batch(
+    flows: List[Dict[str, Any]],
+    config: Config,
+    baseline: Optional[Dict[str, Dict[str, float]]] = None,
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    """Impute, normalize and one-hot encode a batch.
+
+    If `baseline` has fixed "min"/"max" (and "mean") per feature, those are used, so normalized
+    values are on the same scale across batches; values outside the range are clamped to [0, 1].
+    Otherwise ranges and imputation means come from the batch itself.
+    """
+    baseline = baseline or {}
     numeric_values = _collect_numeric(flows, config.numeric_features)
-    numeric_means = {f: mean(vals) for f, vals in numeric_values.items()}
-    numeric_min = {f: min(vals) if vals else 0.0 for f, vals in numeric_values.items()}
-    numeric_max = {f: max(vals) if vals else 0.0 for f, vals in numeric_values.items()}
+    numeric_means = {}
+    numeric_min = {}
+    numeric_max = {}
+    for f, vals in numeric_values.items():
+        fixed = baseline.get(f, {})
+        numeric_means[f] = fixed["mean"] if "mean" in fixed else mean(vals)
+        if "min" in fixed and "max" in fixed:
+            numeric_min[f] = float(fixed["min"])
+            numeric_max[f] = float(fixed["max"])
+        else:
+            numeric_min[f] = min(vals) if vals else 0.0
+            numeric_max[f] = max(vals) if vals else 0.0
 
     categorical_values = {f: set() for f in config.categorical_features}
     for flow in flows:
@@ -53,7 +73,7 @@ def preprocess_batch(flows: List[Dict[str, Any]], config: Config) -> Tuple[List[
             if max_val - min_val == 0:
                 norm = 0.0
             else:
-                norm = (val - min_val) / (max_val - min_val)
+                norm = min(1.0, max(0.0, (val - min_val) / (max_val - min_val)))
             out[f] = val
             out[f"{f}_norm"] = norm
 
