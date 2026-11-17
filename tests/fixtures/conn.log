@@ -1,0 +1,24 @@
+#separator \x09
+#set_separator	,
+#empty_field	(empty)
+#unset_field	-
+#path	conn
+#open	2026-11-17-10-00-00
+#fields	ts	uid	id.orig_h	id.orig_p	id.resp_h	id.resp_p	proto	service	duration	orig_bytes	resp_bytes	conn_state	local_orig	local_resp	missed_bytes	history	orig_pkts	orig_ip_bytes	resp_pkts	resp_ip_bytes	tunnel_parents
+#types	time	string	addr	port	addr	port	enum	string	interval	count	count	string	bool	bool	count	string	count	count	count	count	set[string]
+1763373600.123456	CwebA1	192.168.1.20	51544	93.184.216.34	443	tcp	ssl	2.413	1830	48211	SF	T	F	0	ShADadFf	42	4030	48	51203	-
+1763373601.500000	CdnsB2	192.168.1.20	53211	192.168.1.1	53	udp	dns	0.012	35	120	SF	T	T	0	Dd	1	63	1	148	-
+1763373602.000000	CnoC3	192.168.1.30	40000	10.0.0.5	8080	tcp	-	-	-	-	S0	T	T	0	S	1	44	0	0	-
+1763373610.000000	Cscan00	203.0.113.66	41000	192.168.1.10	20	tcp	-	0.000512	0	0	REJ	F	T	0	Sr	1	44	1	40	-
+1763373611.000000	Cscan01	203.0.113.66	41001	192.168.1.10	21	tcp	-	0.000512	0	0	REJ	F	T	0	Sr	1	44	1	40	-
+1763373612.000000	Cscan02	203.0.113.66	41002	192.168.1.10	22	tcp	-	0.000512	0	0	REJ	F	T	0	Sr	1	44	1	40	-
+1763373613.000000	Cscan03	203.0.113.66	41003	192.168.1.10	23	tcp	-	0.000512	0	0	REJ	F	T	0	Sr	1	44	1	40	-
+1763373614.000000	Cscan04	203.0.113.66	41004	192.168.1.10	24	tcp	-	0.000512	0	0	REJ	F	T	0	Sr	1	44	1	40	-
+1763373615.000000	Cscan05	203.0.113.66	41005	192.168.1.10	25	tcp	-	0.000512	0	0	REJ	F	T	0	Sr	1	44	1	40	-
+1763373616.000000	Cscan06	203.0.113.66	41006	192.168.1.10	26	tcp	-	0.000512	0	0	REJ	F	T	0	Sr	1	44	1	40	-
+1763373617.000000	Cscan07	203.0.113.66	41007	192.168.1.10	27	tcp	-	0.000512	0	0	REJ	F	T	0	Sr	1	44	1	40	-
+1763373618.000000	Cscan08	203.0.113.66	41008	192.168.1.10	28	tcp	-	0.000512	0	0	REJ	F	T	0	Sr	1	44	1	40	-
+1763373619.000000	Cscan09	203.0.113.66	41009	192.168.1.10	29	tcp	-	0.000512	0	0	REJ	F	T	0	Sr	1	44	1	40	-
+1763373620.000000	Cscan10	203.0.113.66	41010	192.168.1.10	30	tcp	-	0.000512	0	0	REJ	F	T	0	Sr	1	44	1	40	-
+1763373621.000000	Cscan11	203.0.113.66	41011	192.168.1.10	31	tcp	-	0.000512	0	0	REJ	F	T	0	Sr	1	44	1	40	-
+#close	2026-11-17-10-05-00
