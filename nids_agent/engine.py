@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import os
@@ -335,8 +335,8 @@ class NIDSAgent:
         # Concept drift (KL divergence) on normalized numeric features
         hist_bins = 10
         current_hist: Dict[str, List[float]] = {}
-        for f in self.config.numeric_features:
-            key = f"{f}_norm"
+        for feat in self.config.numeric_features:
+            key = f"{feat}_norm"
             values = [flow.get(key, 0.0) for flow in processed]
             bins = [0] * hist_bins
             for v in values:
@@ -350,21 +350,21 @@ class NIDSAgent:
                     idx = 0
                 bins[idx] += 1
             total = sum(bins) or 1
-            current_hist[f] = [b / total for b in bins]
+            current_hist[feat] = [b / total for b in bins]
 
         hist_path = os.path.join(self.config.logs_dir, "baseline_hist.json")
         try:
-            with open(hist_path, "r", encoding="utf-8") as f:
-                baseline_hist = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
+            with open(hist_path, "r", encoding="utf-8") as fh:
+                baseline_hist = json.load(fh)
+        except (OSError, json.JSONDecodeError):
             # Missing or corrupt (e.g. left empty by an interrupted write): rebuild from this batch.
             baseline_hist = current_hist
-            with open(hist_path, "w", encoding="utf-8") as f:
-                json.dump(baseline_hist, f, indent=2)
+            with open(hist_path, "w", encoding="utf-8") as fh:
+                json.dump(baseline_hist, fh, indent=2)
 
         kl_scores = []
-        for f, p in current_hist.items():
-            q = baseline_hist.get(f, p)
+        for feat, p in current_hist.items():
+            q = baseline_hist.get(feat, p)
             kl_scores.append(kl_divergence(p, q))
         metrics_update["concept_drift"] = round(max(kl_scores) if kl_scores else 0.0, 4)
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -45,7 +46,7 @@ def load_recent_events(
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
             try:
-                event = __import__("json").loads(line)
+                event = json.loads(line)
                 if since_dt:
                     evt_dt = _parse_iso(event.get("timestamp"))
                     if evt_dt is None:
