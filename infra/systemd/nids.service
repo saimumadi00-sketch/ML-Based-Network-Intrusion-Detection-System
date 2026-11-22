@@ -1,0 +1,30 @@
+# Bare-metal deployment next to zeekctl. Install:
+#   sudo useradd --system --home /opt/nids nids && sudo cp -r . /opt/nids && sudo chown -R nids: /opt/nids
+#   sudo cp infra/systemd/nids.service /etc/systemd/system/ && sudo systemctl enable --now nids
+# The nids user needs read access to /opt/zeek/logs/current.
+[Unit]
+Description=NIDS-Agent (ML network intrusion detection on Zeek conn.log)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=nids
+WorkingDirectory=/opt/nids
+Environment=PYTHONUNBUFFERED=1 NIDS_LOG_MAX_BYTES=104857600 NIDS_LOG_BACKUPS=5
+ExecStart=/usr/bin/python3 app.py --serve --follow /opt/zeek/logs/current/conn.log --format zeek \
+    --logs-dir /var/lib/nids --metrics-port 9108
+StateDirectory=nids
+Restart=on-failure
+RestartSec=5
+# SIGTERM finishes the current batch and saves the checkpoint.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/nids
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

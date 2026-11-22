@@ -1,0 +1,29 @@
+# Zeek sniffs NIDS_IFACE and writes conn.log to a shared volume; the NIDS follows it.
+#   NIDS_IFACE=eth0 docker compose up -d
+#   curl localhost:9108/healthz ; docker compose logs -f nids
+# Linux only (host networking + raw capture). Detect-only: add "--authorize" to the nids command to enable responses.
+services:
+  zeek:
+    image: zeek/zeek:lts
+    network_mode: host
+    cap_add: [NET_RAW, NET_ADMIN]
+    working_dir: /zeek-logs
+    # Hourly rotation keeps conn.log small; the NIDS follows the rename. Rotated files go to conn.<time>.log.
+    command: ["zeek", "-C", "-i", "${NIDS_IFACE:-eth0}", "local", "Log::default_rotation_interval=1hr"]
+    volumes:
+      - zeek-logs:/zeek-logs
+    restart: unless-stopped
+
+  nids:
+    build: .
+    depends_on: [zeek]
+    ports:
+      - "127.0.0.1:9108:9108"
+    volumes:
+      - zeek-logs:/zeek-logs:ro
+      - nids-logs:/app/logs
+    restart: unless-stopped
+
+volumes:
+  zeek-logs:
+  nids-logs:

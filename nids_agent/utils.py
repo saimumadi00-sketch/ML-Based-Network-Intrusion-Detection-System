@@ -3,8 +3,9 @@ from __future__ import annotations
 import ipaddress
 import json
 import os
+from contextlib import contextmanager
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
 
 
 def utc_now_iso() -> str:
@@ -66,17 +67,73 @@ def read_json(path: str) -> Any:
 
 
 def write_json(path: str, data: Any) -> None:
+    """Atomic: a crash mid-write leaves the old file, never a truncated one (checkpoint, incident counter)."""
     dir_path = os.path.dirname(path)
     if dir_path:
         os.makedirs(dir_path, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
+    tmp = f"{path}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
+    os.replace(tmp, path)
+
+
+# Size-based rotation for the JSONL logs (about 2 KB per flow in service mode, so unbounded files fill the disk).
+# 0 disables rotation. Rotated files are <name>.1 (newest) ... <name>.N; reports read only the current file.
+LOG_MAX_BYTES = int(os.environ.get("NIDS_LOG_MAX_BYTES", str(100 * 1024 * 1024)))
+LOG_BACKUPS = int(os.environ.get("NIDS_LOG_BACKUPS", "5"))
+
+
+def _rotate(path: str) -> None:
+    for i in range(LOG_BACKUPS - 1, 0, -1):
+        if os.path.exists(f"{path}.{i}"):
+            os.replace(f"{path}.{i}", f"{path}.{i + 1}")
+    if LOG_BACKUPS > 0:
+        os.replace(path, f"{path}.1")
+    else:
+        os.remove(path)
+
+
+_pending: Optional[Dict[str, List[str]]] = None  # path -> lines, while inside batched_appends()
+
+
+@contextmanager
+def batched_appends() -> Iterator[None]:
+    """Buffer append_jsonl calls and write each file once on exit.
+
+    One open/mkdir/close per record was ~65% of batch time. Not thread-safe: only the batch thread appends.
+    """
+    global _pending
+    if _pending is not None:  # nested: the outer block flushes
+        yield
+        return
+    _pending = {}
+    try:
+        yield
+    finally:
+        pending, _pending = _pending, None
+        for path, lines in pending.items():
+            _write_lines(path, lines)
+
+
+def _write_lines(path: str, lines: List[str]) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    data = "".join(lines)  # json.dumps output is ASCII, so len() is the byte count
+    if LOG_MAX_BYTES > 0:
+        try:
+            if os.path.getsize(path) + len(data) > LOG_MAX_BYTES:
+                _rotate(path)
+        except FileNotFoundError:
+            pass
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(data)
 
 
 def append_jsonl(path: str, record: Dict[str, Any]) -> None:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(record) + "\n")
+    line = json.dumps(record) + "\n"
+    if _pending is not None:
+        _pending.setdefault(path, []).append(line)
+    else:
+        _write_lines(path, [line])
 
 
 def rolling_window(items: List[Any], max_items: int) -> List[Any]:

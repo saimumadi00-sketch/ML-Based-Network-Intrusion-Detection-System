@@ -121,6 +121,8 @@ class Config:
     ml_skip_protocols: List[str] = field(default_factory=lambda: ["ICMP", "ICMPV6", "IPV6-ICMP"])
     # Autonomous responses (only with authorize_autonomous_response) fire for these severities.
     response_actions: Dict[str, str] = field(default_factory=lambda: {"CRITICAL": "block", "HIGH": "rate-limit"})
+    # A scanning source gets one alert per cooldown; its further probes are logged as decisions and events only.
+    scan_alert_cooldown_seconds: float = 300.0
 
     def __post_init__(self) -> None:
         import os

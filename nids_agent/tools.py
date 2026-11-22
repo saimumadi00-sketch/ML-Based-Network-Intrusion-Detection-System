@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 from .model import ForestModel
+from .reports import _parse_alert
 from .utils import append_jsonl, read_json, utc_now_iso
 
 
@@ -108,7 +109,9 @@ class Toolset:
         params = {"bytes": len(alert_payload)}
         try:
             alert_path = os.path.join(self.logs_dir, "alerts.jsonl")
-            append_jsonl(alert_path, {"timestamp": utc_now_iso(), "alert": alert_payload})
+            # `fields` lets a SIEM (Splunk, Elastic, Wazuh) index alerts without parsing the text block.
+            append_jsonl(alert_path, {"timestamp": utc_now_iso(), "fields": _parse_alert(alert_payload),
+                                      "alert": alert_payload})
             _log_tool_call(self.tool_log_path, "create_alert", params, "ok")
         except Exception as exc:
             _log_tool_call(self.tool_log_path, "create_alert", params, "error", str(exc))

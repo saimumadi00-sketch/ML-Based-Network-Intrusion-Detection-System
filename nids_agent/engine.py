@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 import os
 import time
+from collections import deque
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Deque, Dict, List, Optional
 
 from .alerts import build_alert
 from .anomaly import ScanContext, apply_signature_rules, compute_baseline, is_anomalous
@@ -16,7 +17,7 @@ from .reports import append_predictions, kl_divergence, rolling_rates, update_co
 from .scoring import compute_severity
 from .store import load_recent_events, log_decision, log_event
 from .tools import Toolset
-from .utils import calc_f1, is_private_ip
+from .utils import batched_appends, calc_f1, is_private_ip, write_json
 
 
 class NIDSAgent:
@@ -30,6 +31,14 @@ class NIDSAgent:
         # Persists across process_batch calls, so a long-running service sees scans that span batches.
         self.scan_context = ScanContext(self.config.rules)
         self._asset_map_cache: Optional[tuple] = None
+        # Correlation history: the last 24 h of events (newest 1,000), loaded once and kept in memory.
+        # It used to be re-read from events.jsonl every batch, so batch time grew with the file.
+        since = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        self._events: Deque[Dict[str, Any]] = deque(load_recent_events(self.config.logs_dir, since_ts=since),
+                                                     maxlen=1000)
+        # Port scans: src_ip -> (wall time of its last scan alert, incident id). One alert per source per cooldown
+        # instead of one per probe (a 159k-probe scan produced 159k alerts).
+        self._scan_alerted: Dict[str, tuple] = {}
 
     def _asset_map(self) -> Dict[str, Any]:
         """Asset criticality map, re-read only when the file changes (was re-read for every flow)."""
@@ -84,7 +93,31 @@ class NIDSAgent:
             record.update({"status": "error", "error": str(exc)})
         log_decision(self.config.logs_dir, record)
 
+    def _record_event(self, flow: Dict[str, Any], incident_id: str, category: str, seen_flow_ids: set) -> None:
+        flow_id = flow.get("flow_id")
+        if flow_id and flow_id in seen_flow_ids:
+            return  # re-run of an already-recorded flow
+        if flow_id:
+            seen_flow_ids.add(flow_id)
+        self._events.append(log_event(self.config.logs_dir, {
+            "flow_id": flow_id,
+            "incident_id": incident_id,
+            "src_ip": flow.get("src_ip"),
+            "dst_ip": flow.get("dst_ip"),
+            "dst_port": flow.get("dst_port"),
+            "category": category,
+        }))
+        # The cooldown map would otherwise grow with every scanner ever seen.
+        if len(self._scan_alerted) > 10_000:
+            horizon = time.time() - self.config.scan_alert_cooldown_seconds
+            self._scan_alerted = {k: v for k, v in self._scan_alerted.items() if v[0] >= horizon}
+
     def process_batch(self, flows: List[Dict[str, Any]]) -> List[str]:
+        # Logs for the batch are written once at the end (also if it raises, so the decision trail survives).
+        with batched_appends():
+            return self._process_batch(flows)
+
+    def _process_batch(self, flows: List[Dict[str, Any]]) -> List[str]:
         start_time = time.time()
         fixed_baseline = self._load_baseline_file()
         processed, metadata = preprocess_batch(flows, self.config, fixed_baseline)
@@ -111,7 +144,10 @@ class NIDSAgent:
         info_bucket: List[Dict[str, Any]] = []
         end_ts = datetime.now(timezone.utc)
         start_ts = end_ts - timedelta(hours=24)
-        history = load_recent_events(self.config.logs_dir, since_ts=start_ts.isoformat())
+        cutoff = start_ts.isoformat().replace("+00:00", "Z")  # same format as event timestamps, so str compare works
+        while self._events and str(self._events[0].get("timestamp", "")) < cutoff:
+            self._events.popleft()
+        history = list(self._events)
         try:
             db_events = self.tools.query_flow_database({}, (start_ts.isoformat(), end_ts.isoformat()))
             history.extend(db_events)
@@ -294,6 +330,20 @@ class NIDSAgent:
             if flow.get("authenticated_user") and flow.get("lateral_movement"):
                 recommended["immediate"] = "ESCALATE TO SOC HUMAN ANALYST"
 
+            # Port scan already alerted for this source within the cooldown: record the probe, skip the alert.
+            scan_src = str(flow.get("src_ip") or "")
+            is_scan_probe = (rule_match is not None and rule_match.get("aggregate")
+                             and classification["binary_label"] == "ATTACK" and scan_src)
+            if is_scan_probe:
+                last = self._scan_alerted.get(scan_src)
+                if last and time.time() - last[0] < self.config.scan_alert_cooldown_seconds:
+                    log_decision(self.config.logs_dir, {"flow_id": flow.get("flow_id"), "stage": "alert",
+                                                        "status": "suppressed", "reason": f"scan already alerted ({last[1]})"})
+                    self._record_event(flow, last[1], category, seen_flow_ids)
+                    continue
+                evidence_note = f"; scan_distinct_targets={rule_match.get('distinct_targets', '?')}"
+                baseline_delta += evidence_note
+
             self._maybe_respond(flow, classification, severity, recommended)
 
             alert = build_alert(
@@ -331,19 +381,9 @@ class NIDSAgent:
                 if line.startswith("INCIDENT ID"):
                     incident_id = line.split(":", 1)[1].strip()
                     break
-            flow_id = flow.get("flow_id")
-            if flow_id and flow_id in seen_flow_ids:
-                continue
-            if flow_id:
-                seen_flow_ids.add(flow_id)
-            log_event(self.config.logs_dir, {
-                "flow_id": flow_id,
-                "incident_id": incident_id,
-                "src_ip": flow.get("src_ip"),
-                "dst_ip": flow.get("dst_ip"),
-                "dst_port": flow.get("dst_port"),
-                "category": category,
-            })
+            if is_scan_probe:
+                self._scan_alerted[scan_src] = (time.time(), incident_id)
+            self._record_event(flow, incident_id, category, seen_flow_ids)
 
         if info_bucket:
             info_alert = build_alert(
@@ -444,8 +484,7 @@ class NIDSAgent:
         except (OSError, json.JSONDecodeError):
             # Missing or corrupt (e.g. left empty by an interrupted write): rebuild from this batch.
             baseline_hist = current_hist
-            with open(hist_path, "w", encoding="utf-8") as fh:
-                json.dump(baseline_hist, fh, indent=2)
+            write_json(hist_path, baseline_hist)
 
         kl_scores = []
         for feat, p in current_hist.items():

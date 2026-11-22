@@ -167,6 +167,63 @@ class PortScanTest(unittest.TestCase):
         self.assertEqual(detect_port_scans(no_ts, rules), {})
 
 
+class ProductionHardeningTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.config = Config(logs_dir=self.tmp.name, data_dir=DATA, ml_model_name=STUB)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def read_jsonl(self, name):
+        with open(os.path.join(self.tmp.name, name), encoding="utf-8") as f:
+            return [json.loads(line) for line in f if line.strip()]
+
+    def scan_alerts(self, alerts):
+        return [a for a in alerts if "Port Scan" in a]
+
+    def test_one_alert_per_scanning_source(self):
+        agent = NIDSAgent(self.config)
+        alerts = agent.process_batch([probe(i, second=i % 30) for i in range(30)])
+        self.assertEqual(len(self.scan_alerts(alerts)), 1)
+        self.assertIn("scan_distinct_targets=", self.scan_alerts(alerts)[0])
+        suppressed = [d for d in self.read_jsonl("decision_log.jsonl") if d.get("status") == "suppressed"]
+        self.assertEqual(len(suppressed), 29)
+        self.assertEqual(len(self.read_jsonl("events.jsonl")), 30)  # every probe is still recorded
+        # Same scan continuing in the next batch, within the cooldown: no new alert.
+        more = agent.process_batch([dict(probe(i, second=i % 30), flow_id=f"q{i}") for i in range(30, 60)])
+        self.assertEqual(self.scan_alerts(more), [])
+
+    def test_history_survives_restart(self):
+        NIDSAgent(self.config).process_batch(load_sample("ATTACK"))
+        self.assertEqual(len(NIDSAgent(self.config)._events), len(self.read_jsonl("events.jsonl")))
+
+    def test_alert_records_have_structured_fields(self):
+        NIDSAgent(self.config).process_batch(load_sample("ATTACK"))
+        rec = next(r for r in self.read_jsonl("alerts.jsonl") if "DDoS" in r["alert"])
+        self.assertEqual(rec["fields"]["severity"], "HIGH")
+        self.assertTrue(rec["fields"]["incident_id"].startswith("NIDS-"))
+        self.assertEqual(rec["fields"]["source_ip"], "198.51.100.23")
+
+    def test_jsonl_rotation_and_atomic_write(self):
+        from nids_agent import utils
+        old = (utils.LOG_MAX_BYTES, utils.LOG_BACKUPS)
+        utils.LOG_MAX_BYTES, utils.LOG_BACKUPS = 200, 2
+        try:
+            path = os.path.join(self.tmp.name, "x.jsonl")
+            for i in range(20):
+                utils.append_jsonl(path, {"i": i, "pad": "x" * 40})
+        finally:
+            utils.LOG_MAX_BYTES, utils.LOG_BACKUPS = old
+        self.assertTrue(os.path.exists(path + ".1") and os.path.exists(path + ".2"))
+        self.assertFalse(os.path.exists(path + ".3"))
+        self.assertLessEqual(os.path.getsize(path), 200)
+        with open(path, encoding="utf-8") as f:
+            self.assertEqual(json.loads(f.read().splitlines()[-1])["i"], 19)
+        utils.write_json(os.path.join(self.tmp.name, "s.json"), {"a": 1})
+        self.assertNotIn("s.json.tmp", os.listdir(self.tmp.name))
+
+
 class RedactionTest(unittest.TestCase):
     def test_only_internal_ranges_are_private(self):
         from nids_agent.utils import is_private_ip

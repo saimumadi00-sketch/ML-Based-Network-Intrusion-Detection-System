@@ -1,0 +1,11 @@
+.git
+.venv
+nids-env
+datasets
+logs
+tests
+infra
+scripts
+data/installers
+**/__pycache__
+*.pyc

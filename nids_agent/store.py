@@ -26,11 +26,12 @@ def log_decision(logs_dir: str, record: Dict[str, Any]) -> None:
     append_jsonl(path, record)
 
 
-def log_event(logs_dir: str, event: Dict[str, Any]) -> None:
+def log_event(logs_dir: str, event: Dict[str, Any]) -> Dict[str, Any]:
     path = os.path.join(logs_dir, "events.jsonl")
     event = dict(event)
     event["timestamp"] = utc_now_iso()
     append_jsonl(path, event)
+    return event
 
 
 def load_recent_events(

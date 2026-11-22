@@ -62,6 +62,7 @@ class FollowFileSourceTest(unittest.TestCase):
         self.assertEqual([f["flow_id"] for f in src.read(100)], ["Cscan00"])
         src.close()
 
+    @unittest.skipIf(os.name == "nt", "Windows cannot rename a file that is open; Zeek rotation is POSIX-only")
     def test_rotation_drains_old_file_then_reads_new(self):
         self.write(*HEADER, ROWS[0], mode="w")
         src = FollowFileSource(self.path, "zeek", self.cp, from_start=True)
